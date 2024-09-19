@@ -1,0 +1,48 @@
+pip install requests
+
+import requests
+import time
+
+# Configuration
+ZAP_URL = 'http://localhost:8080'  # Change if ZAP is running on a different host/port
+API_KEY = 'your_api_key'  # Replace with your ZAP API key
+TARGET_URL = 'http://example.com'  # Replace with the target URL
+
+def zap_scan(target_url):
+    # Start the scan
+    scan_url = f"{ZAP_URL}/JSON/ascan/action/scan/?apikey={API_KEY}&url={target_url}"
+    response = requests.get(scan_url)
+    scan_id = response.json().get('scan')
+
+    print(f"Scan started for {target_url}. Scan ID: {scan_id}")
+
+    # Wait for the scan to complete
+    while True:
+        status_url = f"{ZAP_URL}/JSON/ascan/view/status/?apikey={API_KEY}&scanId={scan_id}"
+        status_response = requests.get(status_url)
+        status = status_response.json().get('status')
+
+        print(f"Scan progress: {status}%")
+        
+        if status == '100':
+            print("Scan completed!")
+            break
+        
+        time.sleep(5)  # Wait before checking the status again
+
+    # Retrieve the alerts
+    alerts_url = f"{ZAP_URL}/JSON/alert/view/alerts/?apikey={API_KEY}&baseurl={target_url}"
+    alerts_response = requests.get(alerts_url)
+    alerts = alerts_response.json().get('alerts', [])
+
+    return alerts
+
+if __name__ == "__main__":
+    vulnerabilities = zap_scan(TARGET_URL)
+
+    if vulnerabilities:
+        print(f"Found {len(vulnerabilities)} vulnerabilities:")
+        for alert in vulnerabilities:
+            print(f" - {alert['alert']}: {alert['risk']}")
+    else:
+        print("No vulnerabilities found.")
